@@ -1,0 +1,4 @@
+'use client';
+import {useEffect,useState} from 'react';import {supabase} from '@/lib/supabase';
+const money=(n:any)=>new Intl.NumberFormat('fa-IR').format(Number(n||0));
+export default function Expenses(){const [rows,setRows]=useState<any[]>([]);useEffect(()=>{supabase().from('expenses').select('id,description,amount,jalali_date,expense_date,notes').order('expense_date',{ascending:false}).limit(300).then(({data})=>setRows(data||[]))},[]);return <><div className="title"><div><h1>هزینه‌ها</h1><p>هزینه‌های جاری، حمل، مواد اولیه و کارگاه</p></div><span className="badge">{rows.length} رکورد</span></div><div style={{overflow:'auto'}}><table className="table"><thead><tr><th>تاریخ</th><th>شرح</th><th>مبلغ</th><th>یادداشت</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.jalali_date||r.expense_date||'-'}</td><td>{r.description}</td><td>{money(r.amount)}</td><td>{r.notes||'-'}</td></tr>)}</tbody></table></div></>}

@@ -1,0 +1,4 @@
+'use client';
+import {useEffect,useState} from 'react';import {supabase} from '@/lib/supabase';
+const money=(n:any)=>new Intl.NumberFormat('fa-IR').format(Number(n||0));
+export default function Customers(){const [rows,setRows]=useState<any[]>([]);useEffect(()=>{supabase().from('parties').select('id,display_name,phone,city,customer_kind,active').eq('party_type','customer').order('display_name').then(({data})=>setRows(data||[]))},[]);return <><div className="title"><div><h1>مشتریان</h1><p>پرونده مشتریان و اطلاعات تماس</p></div><span className="badge">{rows.length} مشتری</span></div><div style={{overflow:'auto'}}><table className="table"><thead><tr><th>نام</th><th>موبایل</th><th>شهر</th><th>نوع مشتری</th><th>وضعیت</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.display_name}</td><td>{r.phone||'-'}</td><td>{r.city||'-'}</td><td>{r.customer_kind||'-'}</td><td>{r.active?'فعال':'غیرفعال'}</td></tr>)}</tbody></table></div></>}

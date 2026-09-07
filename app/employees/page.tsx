@@ -1,0 +1,4 @@
+'use client';
+import {useEffect,useState} from 'react';import {supabase} from '@/lib/supabase';
+const money=(n:any)=>new Intl.NumberFormat('fa-IR').format(Number(n||0));
+export default function Employees(){const [rows,setRows]=useState<any[]>([]);useEffect(()=>{supabase().from('employees').select('id,full_name,phone,job_title,base_salary,active').order('full_name').then(({data})=>setRows(data||[]))},[]);return <><div className="title"><div><h1>کارکنان و حقوق</h1><p>نیروی کار، سمت و حقوق پایه</p></div><span className="badge">{rows.length} نفر</span></div><div style={{overflow:'auto'}}><table className="table"><thead><tr><th>نام</th><th>سمت</th><th>موبایل</th><th>حقوق پایه</th><th>وضعیت</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.full_name}</td><td>{r.job_title||'-'}</td><td>{r.phone||'-'}</td><td>{money(r.base_salary)}</td><td>{r.active?'فعال':'غیرفعال'}</td></tr>)}</tbody></table></div></>}
