@@ -1,3 +1,5 @@
 # Almas Stone ERP
 
-Persian RTL workshop ERP for Almas Stone, built with Next.js, TypeScript, Supabase and Vercel.
+ERP فارسی RTL برای صنایع سنگ الماس با Next.js + Supabase + Vercel.
+
+وضعیت فعلی: هسته V1، احراز هویت Supabase، داشبورد، محصولات، مشتریان، فاکتورها، چک‌ها، هزینه‌ها، دریافت و پرداخت، خرید، انبار، تولید، کارکنان، گزارش و تنظیمات.
