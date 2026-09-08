@@ -31,7 +31,7 @@ export default function Invoices(){
    const {data:u}=await s.auth.getUser();
    const {data:inv,error}=await s.from('sales_invoices').insert({customer_id:customerId,invoice_date:new Date().toISOString().slice(0,10),jalali_date:jalali||null,status:'confirmed',subtotal,discount:Number(discount||0),freight:Number(freight||0),total,notes:notes||null,created_by:u.user?.id||null}).select('id,invoice_no').single();
    if(error||!inv){setMsg('خطا در ثبت فاکتور: '+(error?.message||''));setBusy(false);return}
-   const payload=valid.map(l=>({invoice_id:inv.id,product_id:l.product_id||null,description:l.description,quantity:Number(l.quantity),unit_price:Number(l.unit_price),discount:Number(l.discount||0),line_total:Math.max(0,Number(l.quantity)*Number(l.unit_price)-Number(l.discount||0))}));
+   const payload=valid.map(l=>({invoice_id:inv.id,product_id:l.product_id||null,description:l.description,quantity:Number(l.quantity),unit_price:Number(l.unit_price),discount:Number(l.discount||0)}));
    const {error:e2}=await s.from('sales_invoice_items').insert(payload);
    if(e2){await s.from('sales_invoices').delete().eq('id',inv.id);setMsg('خطا در ثبت اقلام فاکتور: '+e2.message);setBusy(false);return}
    setBusy(false);setOpen(false);reset();await load();
