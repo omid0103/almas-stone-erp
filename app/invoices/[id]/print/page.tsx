@@ -4,6 +4,15 @@ import {useParams,useRouter} from 'next/navigation';
 import {supabase} from '@/lib/supabase';
 
 const money=(n:any)=>new Intl.NumberFormat('fa-IR').format(Number(n||0));
+const jalali=(value?:string|null)=>{
+ if(!value)return '-';
+ if(/^1[34]\d{2}\/\d{1,2}\/\d{1,2}$/.test(value))return value;
+ const d=new Date(value.length===10?value+'T12:00:00':value);
+ if(Number.isNaN(d.getTime()))return value;
+ const p=new Intl.DateTimeFormat('en-US-u-ca-persian',{year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
+ const get=(t:string)=>p.find(x=>x.type===t)?.value||'';
+ return `${get('year')}/${get('month')}/${get('day')}`;
+};
 export default function PrintInvoice(){
  const {id}=useParams<{id:string}>();
  const r=useRouter();
@@ -21,7 +30,7 @@ export default function PrintInvoice(){
   <div className="sheet" style={{maxWidth:900,margin:'12px auto 30px',border:'1px solid #ccc',padding:24,boxSizing:'border-box'}}>
    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:20,borderBottom:'2px solid #222',paddingBottom:14}}>
     <div><div style={{fontSize:24,fontWeight:800}}>صنایع سنگ الماس</div><div style={{marginTop:4,fontSize:13}}>ALMAS STONE</div></div>
-    <div style={{textAlign:'left',lineHeight:1.9}}><div><b>فاکتور فروش</b></div><div>شماره: {inv.invoice_no}</div><div>تاریخ: {inv.jalali_date||inv.invoice_date||'-'}</div></div>
+    <div style={{textAlign:'left',lineHeight:1.9}}><div><b>فاکتور فروش</b></div><div>شماره: {inv.invoice_no}</div><div>تاریخ: {inv.jalali_date||jalali(inv.invoice_date)}</div></div>
    </div>
    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:16,fontSize:14}}><div><b>خریدار:</b> {c.display_name||'-'}</div><div><b>موبایل:</b> {c.phone||'-'}</div><div style={{gridColumn:'1 / -1'}}><b>آدرس:</b> {[c.city,c.address].filter(Boolean).join('، ')||'-'}</div></div>
    <table style={{width:'100%',borderCollapse:'collapse',marginTop:18,fontSize:13}}><thead><tr>{['ردیف','شرح کالا','تعداد','قیمت واحد','تخفیف','جمع'].map(x=><th key={x} style={{border:'1px solid #999',padding:8,background:'#f1f1f1'}}>{x}</th>)}</tr></thead><tbody>{items.map((x,i)=><tr key={x.id}><td style={{border:'1px solid #bbb',padding:8,textAlign:'center'}}>{i+1}</td><td style={{border:'1px solid #bbb',padding:8}}>{x.description}</td><td style={{border:'1px solid #bbb',padding:8,textAlign:'center'}}>{money(x.quantity)}</td><td style={{border:'1px solid #bbb',padding:8,textAlign:'center'}}>{money(x.unit_price)}</td><td style={{border:'1px solid #bbb',padding:8,textAlign:'center'}}>{money(x.discount)}</td><td style={{border:'1px solid #bbb',padding:8,textAlign:'center',fontWeight:700}}>{money(x.line_total)}</td></tr>)}</tbody></table>
