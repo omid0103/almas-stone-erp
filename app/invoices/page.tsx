@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
+import Link from 'next/link';
 import {supabase} from '@/lib/supabase';
 import FormModal from '@/components/FormModal';
 
@@ -40,7 +41,7 @@ export default function Invoices(){
  return <>
   <div className="title"><div><h1>فروش و فاکتور</h1><p>ثبت فاکتورهای جدید از این تاریخ به بعد</p></div><div style={{display:'flex',gap:8,alignItems:'center'}}><span className="badge">{rows.length} فاکتور</span><button className="btn" onClick={()=>{reset();setOpen(true)}}>+ فاکتور جدید</button></div></div>
   <div className="card" style={{marginBottom:14}}><b>جمع فروش ثبت‌شده: {money(rows.reduce((s,r)=>s+Number(r.total||0),0))} تومان</b></div>
-  <div style={{overflow:'auto'}}><table className="table"><thead><tr><th>شماره</th><th>تاریخ</th><th>مشتری</th><th>جمع کالا</th><th>تخفیف</th><th>کرایه</th><th>مبلغ نهایی</th><th>وضعیت</th><th></th></tr></thead><tbody>{rows.length?rows.map((r:any)=><tr key={r.id}><td>{r.invoice_no}</td><td>{r.jalali_date||r.invoice_date||'-'}</td><td>{r.customer?.display_name||'-'}</td><td>{money(r.subtotal)}</td><td>{money(r.discount)}</td><td>{money(r.freight)}</td><td><b>{money(r.total)}</b></td><td>{r.status==='confirmed'?'تأیید شده':r.status}</td><td><button className="btn" style={{background:'#7b2d24',padding:'6px 9px'}} onClick={()=>remove(r.id)}>حذف</button></td></tr>):<tr><td colSpan={9} style={{textAlign:'center',padding:30}}>هنوز فاکتوری ثبت نشده است.</td></tr>}</tbody></table></div>
+  <div style={{overflow:'auto'}}><table className="table"><thead><tr><th>شماره</th><th>تاریخ</th><th>مشتری</th><th>جمع کالا</th><th>تخفیف</th><th>کرایه</th><th>مبلغ نهایی</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>{rows.length?rows.map((r:any)=><tr key={r.id}><td>{r.invoice_no}</td><td>{r.jalali_date||r.invoice_date||'-'}</td><td>{r.customer?.display_name||'-'}</td><td>{money(r.subtotal)}</td><td>{money(r.discount)}</td><td>{money(r.freight)}</td><td><b>{money(r.total)}</b></td><td>{r.status==='confirmed'?'تأیید شده':r.status}</td><td><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><Link className="btn" style={{padding:'6px 9px',textDecoration:'none'}} href={`/invoices/${r.id}/print`} target="_blank">پرینت</Link><button className="btn" style={{background:'#7b2d24',padding:'6px 9px'}} onClick={()=>remove(r.id)}>حذف</button></div></td></tr>):<tr><td colSpan={9} style={{textAlign:'center',padding:30}}>هنوز فاکتوری ثبت نشده است.</td></tr>}</tbody></table></div>
   <FormModal open={open} title="ثبت فاکتور فروش" onClose={()=>setOpen(false)}>
    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
     <div className="field"><label>مشتری *</label><select className="input" value={customerId} onChange={e=>setCustomerId(e.target.value)}><option value="">انتخاب مشتری</option>{customers.map(c=><option key={c.id} value={c.id}>{c.display_name}</option>)}</select>{!customers.length&&<small>ابتدا از بخش مشتریان، مشتری جدید ثبت کنید.</small>}</div>
