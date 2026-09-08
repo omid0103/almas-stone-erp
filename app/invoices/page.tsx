@@ -2,7 +2,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import Link from 'next/link';
 import {supabase} from '@/lib/supabase';
-import {toJalali,todayJalali} from '@/lib/jalali';
+import {fromJalali,toJalali,todayJalali} from '@/lib/jalali';
 import FormModal from '@/components/FormModal';
 
 const money=(n:any)=>new Intl.NumberFormat('fa-IR').format(Number(n||0));
@@ -27,11 +27,12 @@ export default function Invoices(){
  const total=Math.max(0,subtotal-Number(discount||0)+Number(freight||0));
  async function save(){
    if(!customerId){setMsg('مشتری را انتخاب کنید.');return}
+   const date=fromJalali(jalali);if(!date){setMsg('تاریخ شمسی معتبر وارد کنید؛ مثال 1405/06/18');return}
    const valid=lines.filter(l=>l.description.trim()&&Number(l.quantity)>0);
    if(!valid.length){setMsg('حداقل یک قلم کالا وارد کنید.');return}
    setBusy(true);setMsg('');const s=supabase();
    const {data:u}=await s.auth.getUser();
-   const {data:inv,error}=await s.from('sales_invoices').insert({customer_id:customerId,invoice_date:new Date().toISOString().slice(0,10),jalali_date:jalali||todayJalali(),status:'confirmed',subtotal,discount:Number(discount||0),freight:Number(freight||0),total,notes:notes||null,created_by:u.user?.id||null}).select('id,invoice_no').single();
+   const {data:inv,error}=await s.from('sales_invoices').insert({customer_id:customerId,invoice_date:date,jalali_date:jalali,status:'confirmed',subtotal,discount:Number(discount||0),freight:Number(freight||0),total,notes:notes||null,created_by:u.user?.id||null}).select('id,invoice_no').single();
    if(error||!inv){setMsg('خطا در ثبت فاکتور: '+(error?.message||''));setBusy(false);return}
    const payload=valid.map(l=>({invoice_id:inv.id,product_id:l.product_id||null,description:l.description,quantity:Number(l.quantity),unit_price:Number(l.unit_price),discount:Number(l.discount||0)}));
    const {error:e2}=await s.from('sales_invoice_items').insert(payload);
@@ -46,7 +47,7 @@ export default function Invoices(){
   <FormModal open={open} title="ثبت فاکتور فروش" onClose={()=>setOpen(false)}>
    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
     <div className="field"><label>مشتری *</label><select className="input" value={customerId} onChange={e=>setCustomerId(e.target.value)}><option value="">انتخاب مشتری</option>{customers.map(c=><option key={c.id} value={c.id}>{c.display_name}</option>)}</select>{!customers.length&&<small>ابتدا از بخش مشتریان، مشتری جدید ثبت کنید.</small>}</div>
-    <div className="field"><label>تاریخ شمسی</label><input className="input" placeholder="مثلاً 1405/06/16" value={jalali} onChange={e=>setJalali(e.target.value)}/></div>
+    <div className="field"><label>تاریخ شمسی</label><input className="input" placeholder="مثلاً 1405/06/18" value={jalali} onChange={e=>setJalali(e.target.value)}/></div>
    </div>
    <div className="section"><b>اقلام فاکتور</b>{lines.map((l,i)=><div key={i} className="card" style={{marginTop:8,background:'#faf8f2'}}>
     <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:8}}><select className="input" value={l.product_id} onChange={e=>chooseProduct(i,e.target.value)}><option value="">انتخاب محصول / ورود دستی</option>{products.map(p=><option key={p.id} value={p.id}>{p.name}{p.sku?' - '+p.sku:''}</option>)}</select><button className="btn" style={{background:'#7b2d24'}} disabled={lines.length===1} onClick={()=>setLines(v=>v.filter((_,x)=>x!==i))}>حذف قلم</button></div>
