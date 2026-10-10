@@ -24,7 +24,7 @@ export default function Pos(){
   ]);
   if(pe){setMsg('ساختار فروش سریع هنوز روی دیتابیس فعال نشده است. پس از اجرای ارتقای V2 دوباره تلاش کنید.');return}
   const sm=new Map((st||[]).map((x:any)=>[x.product_id,Number(x.available_stock||0)]));
-  setProducts((p||[]).map((x:any)=>({...x,stock:sm.get(x.id)||0})));setCustomers(c||[]);setSessionId(cs?.id||null);
+  setProducts((p||[]).map((x:any)=>({...x,stock:sm.get(x.id)||0})));setCustomers(c||[]);const cash=(c||[]).find((x:any)=>x.display_name==='مشتری نقدی');if(!customerId&&cash){setCustomerId(cash.id);setTier(cash.customer_kind||'retail')}setSessionId(cs?.id||null);
  }
  useEffect(()=>{load();setTimeout(()=>scanRef.current?.focus(),250)},[]);
  const filtered=useMemo(()=>{const s=q.trim().toLowerCase();if(!s)return products.slice(0,40);return products.filter(p=>[p.name,p.sku,p.barcode].some(v=>String(v||'').toLowerCase().includes(s))).slice(0,60)},[products,q]);
