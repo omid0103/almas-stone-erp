@@ -36,7 +36,7 @@ alter table if exists public.company_settings
 alter table if exists public.purchase_invoices
   add column if not exists paid_amount numeric(18,2) not null default 0,
   add column if not exists payment_status text not null default 'unpaid';
-do $ begin
+do $$ begin
   if not exists(select 1 from pg_constraint where conname='purchase_invoices_payment_status_check') then
     alter table public.purchase_invoices
       add constraint purchase_invoices_payment_status_check
@@ -77,7 +77,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path=public
-as $
+as $$
 declare
   pdate date;
   pj text;
@@ -92,9 +92,9 @@ begin
   where id=new.product_id;
   return new;
 end;
-$;
+$$;
 
-do $ begin
+do $$ begin
   if not exists(select 1 from pg_trigger where tgname='purchase_product_stock_sync_trg') then
     create trigger purchase_product_stock_sync_trg
       after insert on public.purchase_items
@@ -248,7 +248,7 @@ create or replace function public.create_sale_return(
 language plpgsql
 security definer
 set search_path=public
-as $
+as $$
 declare
   r_id uuid;
   it jsonb;
@@ -341,7 +341,7 @@ returns void
 language plpgsql
 security definer
 set search_path=public
-as $
+as $$
 declare
   inv public.sales_invoices%rowtype;
   it record;
@@ -361,7 +361,7 @@ begin
   end loop;
   update public.sales_invoices set status='cancelled',payment_status='unpaid' where id=p_invoice_id;
 end;
-$;
+$$;
 
 -- Secure user invitations: public sign-up is rejected unless an owner/admin created an invite
 create table if not exists public.user_invites(
@@ -381,7 +381,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path=public
-as $
+as $$
 declare
   profile_count bigint;
   inv public.user_invites%rowtype;
@@ -414,7 +414,7 @@ begin
   update public.user_invites set status='accepted' where id=inv.id;
   return new;
 end;
-$;
+$$;
 
 -- RLS
 alter table public.cash_registers enable row level security;
@@ -423,7 +423,7 @@ alter table public.sale_returns enable row level security;
 alter table public.sale_return_items enable row level security;
 alter table public.audit_logs enable row level security;\nalter table public.user_invites enable row level security;
 
-do $ begin
+do $$ begin
 
   if not exists(select 1 from pg_policies where schemaname='public' and tablename='financial_transactions' and policyname='sales finance read') then
     create policy "sales finance read" on public.financial_transactions for select to authenticated
