@@ -28,4 +28,4 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 
-dependencies {}
+dependencies {\n    implementation("androidx.core:core-ktx:1.15.0")\n}
