@@ -27,12 +27,14 @@ export default function Pos(){
   setProducts((p||[]).map((x:any)=>({...x,stock:sm.get(x.id)||0})));setCustomers(c||[]);const cash=(c||[]).find((x:any)=>x.display_name==='مشتری نقدی');if(!customerId&&cash){setCustomerId(cash.id);setTier(cash.customer_kind||'retail')}setSessionId(cs?.id||null);
  }
  useEffect(()=>{load();setTimeout(()=>scanRef.current?.focus(),250)},[]);
+ useEffect(()=>{const h=(event:Event)=>{const code=String((event as CustomEvent).detail||'').trim();if(!code)return;const p=products.find(x=>String(x.barcode||'')===code||String(x.sku||'')===code);if(p){add(p);setQ('');setMsg('')}else setMsg('کالایی با بارکد اسکن‌شده پیدا نشد.');};window.addEventListener('almas-barcode',h);return()=>window.removeEventListener('almas-barcode',h)},[products,tier]);
  const filtered=useMemo(()=>{const s=q.trim().toLowerCase();if(!s)return products.slice(0,40);return products.filter(p=>[p.name,p.sku,p.barcode].some(v=>String(v||'').toLowerCase().includes(s))).slice(0,60)},[products,q]);
  const subtotal=useMemo(()=>cart.reduce((a,x)=>a+Math.max(0,x.quantity*x.unit_price-x.discount),0),[cart]);
  const total=Math.max(0,subtotal-Number(discount||0));const balance=Math.max(0,total-Number(paid||0));
  function selectCustomer(id:string){setCustomerId(id);const c=customers.find(x=>x.id===id);const t=c?.customer_kind||'retail';setTier(t);setCart(v=>v.map(x=>{const p=products.find(y=>y.id===x.product_id);return {...x,unit_price:p?priceOf(p,t):x.unit_price}}))}
  function add(p:any){setMsg('');setCart(v=>{const i=v.findIndex(x=>x.product_id===p.id);if(i>=0)return v.map((x,n)=>n===i?{...x,quantity:x.quantity+1}:x);return [...v,{product_id:p.id,name:p.name,quantity:1,unit_price:priceOf(p,tier),discount:0,stock:Number(p.stock||0),track_stock:p.track_stock!==false,unit:p.unit||'عدد'}]})}
  function scan(e:React.KeyboardEvent<HTMLInputElement>){if(e.key!=='Enter')return;const s=q.trim();if(!s)return;const p=products.find(x=>String(x.barcode||'')===s||String(x.sku||'')===s);if(p){add(p);setQ('');setTimeout(()=>scanRef.current?.focus(),50)}else setMsg('کالایی با این بارکد/کد پیدا نشد.')}
+ function scanCamera(){const bridge=(window as any).AndroidScan;if(bridge?.scan)bridge.scan();else setMsg('اسکن با دوربین در اپ اندروید فعال است؛ در مرورگر از بارکدخوان یا ورود دستی استفاده کنید.')}
  function patch(id:string,k:keyof CartLine,v:any){setCart(a=>a.map(x=>x.product_id===id?{...x,[k]:v}:x))}
  async function save(){
   if(!customerId){setMsg('مشتری را انتخاب کنید.');return}
@@ -57,7 +59,7 @@ export default function Pos(){
  return <><div className="title"><div><h1>فروش سریع / POS</h1><p>جستجو یا اسکن بارکد، صدور فاکتور و ثبت پرداخت در یک مرحله</p></div><div style={{display:'flex',gap:8}}>{sessionId?<span className="pill">صندوق باز</span>:<span className="pill warn">صندوق باز نیست</span>}<Link className="btn secondary" href="/cash">صندوق</Link></div></div>
  <div className="pos-layout">
   <div>
-   <div className="card"><div className="two-col"><div className="field" style={{margin:0}}><label>بارکد / کد / نام کالا</label><input ref={scanRef} className="input" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={scan} placeholder="بارکد را اسکن کنید یا نام کالا را بنویسید"/></div><div className="field" style={{margin:0}}><label>مشتری *</label><select className="input" value={customerId} onChange={e=>selectCustomer(e.target.value)}><option value="">انتخاب مشتری</option>{customers.map(c=><option key={c.id} value={c.id}>{c.display_name}</option>)}</select></div></div></div>
+   <div className="card"><div className="two-col"><div className="field" style={{margin:0}}><label>بارکد / کد / نام کالا</label><div style={{display:'flex',gap:6}}><input ref={scanRef} className="input" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={scan} placeholder="بارکد را اسکن کنید یا نام کالا را بنویسید"/><button type="button" className="btn secondary" onClick={scanCamera}>دوربین</button></div></div><div className="field" style={{margin:0}}><label>مشتری *</label><select className="input" value={customerId} onChange={e=>selectCustomer(e.target.value)}><option value="">انتخاب مشتری</option>{customers.map(c=><option key={c.id} value={c.id}>{c.display_name}</option>)}</select></div></div></div>
    <div className="pos-products section">{filtered.map(p=><button type="button" className={Number(p.stock)<=0&&p.track_stock!==false?'product-tile low':'product-tile'} key={p.id} onClick={()=>add(p)}><b>{p.name}</b><div className="muted" style={{fontSize:11,marginTop:5}}>{p.sku||p.barcode||'بدون کد'} · موجودی {money(p.stock)} {p.unit}</div><div style={{fontWeight:800,marginTop:8}}>{money(priceOf(p,tier))} تومان</div></button>)}</div>
   </div>
   <div className="cart card">
