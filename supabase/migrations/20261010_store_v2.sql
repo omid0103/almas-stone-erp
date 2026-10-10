@@ -421,7 +421,8 @@ alter table public.cash_registers enable row level security;
 alter table public.cash_sessions enable row level security;
 alter table public.sale_returns enable row level security;
 alter table public.sale_return_items enable row level security;
-alter table public.audit_logs enable row level security;\nalter table public.user_invites enable row level security;
+alter table public.audit_logs enable row level security;
+alter table public.user_invites enable row level security;
 
 do $$ begin
 
@@ -476,6 +477,7 @@ revoke execute on function public.handle_new_user() from public, anon, authentic
 revoke execute on function public.create_sale_return(uuid,uuid,date,text,jsonb,numeric,text,text) from public, anon;
 revoke execute on function public.cancel_sales_invoice(uuid) from public, anon;
 
-grant execute on function public.create_sale_return(uuid,uuid,date,text,jsonb,numeric,text,text) to authenticated;\ngrant execute on function public.cancel_sales_invoice(uuid) to authenticated;
+grant execute on function public.create_sale_return(uuid,uuid,date,text,jsonb,numeric,text,text) to authenticated;
+grant execute on function public.cancel_sales_invoice(uuid) to authenticated;
 
 commit;
