@@ -4,7 +4,6 @@ begin;
 alter table if exists public.products
   add column if not exists barcode text,
   add column if not exists purchase_price numeric(18,2) not null default 0,
-  add column if not exists tax_percent numeric(6,2) not null default 0,
   add column if not exists track_stock boolean not null default true;
 create unique index if not exists products_barcode_uidx on public.products(barcode) where barcode is not null and btrim(barcode) <> '';
 
@@ -29,7 +28,6 @@ end $$;
 
 alter table if exists public.company_settings
   add column if not exists store_mode boolean not null default true,
-  add column if not exists default_tax_percent numeric(6,2) not null default 0,
   add column if not exists logo_url text;
 
 
