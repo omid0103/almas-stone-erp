@@ -248,6 +248,34 @@ end;
 $$;
 
 
+
+-- Safe invoice cancellation: keep audit trail and reverse stock only when no money/returns exist
+create or replace function public.cancel_sales_invoice(p_invoice_id uuid)
+returns void
+language plpgsql
+security invoker
+set search_path=public
+as $
+declare
+  inv public.sales_invoices%rowtype;
+  it record;
+begin
+  select * into inv from public.sales_invoices where id=p_invoice_id for update;
+  if not found then raise exception 'Invoice not found'; end if;
+  if inv.status='cancelled' then return; end if;
+  if coalesce(inv.paid_amount,0)>0 then raise exception 'Paid invoice cannot be cancelled; reverse the payment first'; end if;
+  if exists(select 1 from public.sale_returns where invoice_id=p_invoice_id and status='confirmed') then
+    raise exception 'Invoice with confirmed returns cannot be cancelled';
+  end if;
+  for it in select product_id,quantity,description from public.sales_invoice_items where invoice_id=p_invoice_id and product_id is not null
+  loop
+    insert into public.inventory_movements(product_id,movement_type,quantity,movement_date,jalali_date,ref_type,ref_id,notes)
+    values(it.product_id,'return_in',it.quantity,current_date,inv.jalali_date,'invoice_cancel',p_invoice_id,'برگشت موجودی بابت ابطال فاکتور');
+  end loop;
+  update public.sales_invoices set status='cancelled',payment_status='unpaid' where id=p_invoice_id;
+end;
+$;
+
 -- Secure user invitations: public sign-up is rejected unless an owner/admin created an invite
 create table if not exists public.user_invites(
   id uuid primary key default gen_random_uuid(),
@@ -345,6 +373,6 @@ grant select,insert,update,delete on public.cash_registers, public.cash_sessions
 grant select on public.audit_logs to authenticated;
 grant usage,select on sequence public.sale_returns_return_no_seq to authenticated;
 grant usage,select on sequence public.audit_logs_id_seq to authenticated;
-grant execute on function public.create_sale_return(uuid,uuid,date,text,jsonb,numeric,text,text) to authenticated;
+grant execute on function public.create_sale_return(uuid,uuid,date,text,jsonb,numeric,text,text) to authenticated;\ngrant execute on function public.cancel_sales_invoice(uuid) to authenticated;
 
 commit;
