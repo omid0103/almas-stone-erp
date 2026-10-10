@@ -42,7 +42,7 @@ do $$ begin
       add constraint purchase_invoices_payment_status_check
       check(payment_status in ('unpaid','partial','paid'));
   end if;
-end $;
+end $$;
 
 alter table if exists public.financial_transactions
   add column if not exists purchase_invoice_id uuid references public.purchase_invoices(id) on delete set null;
@@ -101,7 +101,7 @@ do $$ begin
       for each row when (new.product_id is not null)
       execute function public.purchase_product_stock_sync();
   end if;
-end $;
+end $$;
 
 create or replace view public.v_product_stock
 with (security_invoker=true) as
