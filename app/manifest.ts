@@ -10,5 +10,5 @@ export default function manifest():MetadataRoute.Manifest{return{
  orientation:'portrait-primary',
  lang:'fa',
  dir:'rtl',
- icons:[{src:'/icon.svg',sizes:'any',type:'image/svg+xml',purpose:'any maskable'}]
+ icons:[{src:'/icon.svg',sizes:'any',type:'image/svg+xml',purpose:'maskable'}]
 }}
