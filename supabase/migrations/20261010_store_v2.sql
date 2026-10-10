@@ -247,12 +247,66 @@ begin
 end;
 $$;
 
+
+-- Secure user invitations: public sign-up is rejected unless an owner/admin created an invite
+create table if not exists public.user_invites(
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  full_name text,
+  role app_role not null default 'sales',
+  status text not null default 'pending' check(status in ('pending','accepted','cancelled','expired')),
+  expires_at timestamptz not null default (now()+interval '7 days'),
+  invited_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists user_invites_status_idx on public.user_invites(status,expires_at);
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path=public
+as $
+declare
+  profile_count bigint;
+  inv public.user_invites%rowtype;
+begin
+  select count(*) into profile_count from public.profiles;
+  if profile_count=0 then
+    insert into public.profiles(id,full_name,role,active)
+    values(new.id,coalesce(new.raw_user_meta_data->>'full_name',new.email,'مالک'),'owner',true)
+    on conflict(id) do nothing;
+    return new;
+  end if;
+
+  select * into inv
+  from public.user_invites
+  where lower(email)=lower(new.email)
+    and status='pending'
+    and expires_at>now()
+  limit 1
+  for update;
+
+  if not found then
+    raise exception 'INVITE_REQUIRED';
+  end if;
+
+  insert into public.profiles(id,full_name,role,active)
+  values(new.id,coalesce(inv.full_name,new.raw_user_meta_data->>'full_name',new.email),inv.role,true)
+  on conflict(id) do update
+    set full_name=excluded.full_name, role=excluded.role, active=true;
+
+  update public.user_invites set status='accepted' where id=inv.id;
+  return new;
+end;
+$;
+
 -- RLS
 alter table public.cash_registers enable row level security;
 alter table public.cash_sessions enable row level security;
 alter table public.sale_returns enable row level security;
 alter table public.sale_return_items enable row level security;
-alter table public.audit_logs enable row level security;
+alter table public.audit_logs enable row level security;\nalter table public.user_invites enable row level security;
 
 do $$ begin
   if not exists(select 1 from pg_policies where schemaname='public' and tablename='cash_registers' and policyname='cash registers access') then
@@ -275,14 +329,19 @@ do $$ begin
       using (public.current_role() = any(array['owner'::app_role,'admin'::app_role,'accountant'::app_role,'sales'::app_role]))
       with check (public.current_role() = any(array['owner'::app_role,'admin'::app_role,'accountant'::app_role,'sales'::app_role]));
   end if;
+  if not exists(select 1 from pg_policies where schemaname='public' and tablename='user_invites' and policyname='user invites access') then
+    create policy "user invites access" on public.user_invites for all to authenticated
+      using (public.current_role() = any(array['owner'::app_role,'admin'::app_role]))
+      with check (public.current_role() = any(array['owner'::app_role,'admin'::app_role]));
+  end if;
   if not exists(select 1 from pg_policies where schemaname='public' and tablename='audit_logs' and policyname='audit logs read') then
     create policy "audit logs read" on public.audit_logs for select to authenticated
       using (public.current_role() = any(array['owner'::app_role,'admin'::app_role]));
   end if;
 end $$;
 
-revoke all on public.cash_registers, public.cash_sessions, public.sale_returns, public.sale_return_items, public.audit_logs from anon;
-grant select,insert,update,delete on public.cash_registers, public.cash_sessions, public.sale_returns, public.sale_return_items to authenticated;
+revoke all on public.cash_registers, public.cash_sessions, public.sale_returns, public.sale_return_items, public.audit_logs, public.user_invites from anon;
+grant select,insert,update,delete on public.cash_registers, public.cash_sessions, public.sale_returns, public.sale_return_items, public.user_invites to authenticated;
 grant select on public.audit_logs to authenticated;
 grant usage,select on sequence public.sale_returns_return_no_seq to authenticated;
 grant usage,select on sequence public.audit_logs_id_seq to authenticated;
