@@ -75,7 +75,7 @@ create index if not exists purchase_items_product_idx on public.purchase_items(p
 create or replace function public.purchase_product_stock_sync()
 returns trigger
 language plpgsql
-security invoker
+security definer
 set search_path=public
 as $
 declare
@@ -194,7 +194,7 @@ create index if not exists audit_logs_created_idx on public.audit_logs(created_a
 create or replace function public.audit_core_change()
 returns trigger
 language plpgsql
-security invoker
+security definer
 set search_path=public
 as $$
 declare
@@ -246,9 +246,9 @@ create or replace function public.create_sale_return(
   p_notes text default null
 ) returns uuid
 language plpgsql
-security invoker
+security definer
 set search_path=public
-as $$
+as $
 declare
   r_id uuid;
   it jsonb;
@@ -261,6 +261,7 @@ declare
   price numeric;
   sum_total numeric := 0;
 begin
+  if public.current_role() not in ('owner'::app_role,'admin'::app_role,'accountant'::app_role,'sales'::app_role) then raise exception 'NOT_ALLOWED'; end if;
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items)=0 then
     raise exception 'No return items supplied';
   end if;
@@ -338,13 +339,14 @@ $$;
 create or replace function public.cancel_sales_invoice(p_invoice_id uuid)
 returns void
 language plpgsql
-security invoker
+security definer
 set search_path=public
 as $
 declare
   inv public.sales_invoices%rowtype;
   it record;
 begin
+  if public.current_role() not in ('owner'::app_role,'admin'::app_role,'accountant'::app_role,'sales'::app_role) then raise exception 'NOT_ALLOWED'; end if;
   select * into inv from public.sales_invoices where id=p_invoice_id for update;
   if not found then raise exception 'Invoice not found'; end if;
   if inv.status='cancelled' then return; end if;
@@ -421,7 +423,16 @@ alter table public.sale_returns enable row level security;
 alter table public.sale_return_items enable row level security;
 alter table public.audit_logs enable row level security;\nalter table public.user_invites enable row level security;
 
-do $$ begin
+do $ begin
+
+  if not exists(select 1 from pg_policies where schemaname='public' and tablename='financial_transactions' and policyname='sales finance read') then
+    create policy "sales finance read" on public.financial_transactions for select to authenticated
+      using (public.current_role()='sales'::app_role and direction='receipt');
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='public' and tablename='financial_transactions' and policyname='sales finance insert') then
+    create policy "sales finance insert" on public.financial_transactions for insert to authenticated
+      with check (public.current_role()='sales'::app_role and direction='receipt' and created_by=auth.uid());
+  end if;
   if not exists(select 1 from pg_policies where schemaname='public' and tablename='cash_registers' and policyname='cash registers access') then
     create policy "cash registers access" on public.cash_registers for all to authenticated
       using (public.current_role() = any(array['owner'::app_role,'admin'::app_role,'accountant'::app_role,'sales'::app_role]))
@@ -458,6 +469,13 @@ grant select,insert,update,delete on public.cash_registers, public.cash_sessions
 grant select on public.audit_logs to authenticated;
 grant usage,select on sequence public.sale_returns_return_no_seq to authenticated;
 grant usage,select on sequence public.audit_logs_id_seq to authenticated;
+
+revoke execute on function public.audit_core_change() from public, anon, authenticated;
+revoke execute on function public.purchase_product_stock_sync() from public, anon, authenticated;
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.create_sale_return(uuid,uuid,date,text,jsonb,numeric,text,text) from public, anon;
+revoke execute on function public.cancel_sales_invoice(uuid) from public, anon;
+
 grant execute on function public.create_sale_return(uuid,uuid,date,text,jsonb,numeric,text,text) to authenticated;\ngrant execute on function public.cancel_sales_invoice(uuid) to authenticated;
 
 commit;
