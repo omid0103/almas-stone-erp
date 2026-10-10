@@ -32,6 +32,57 @@ alter table if exists public.company_settings
   add column if not exists default_tax_percent numeric(6,2) not null default 0,
   add column if not exists logo_url text;
 
+
+-- Purchases can add either raw materials or finished retail products
+alter table if exists public.purchase_items
+  add column if not exists product_id uuid references public.products(id) on delete set null;
+create index if not exists purchase_items_product_idx on public.purchase_items(product_id);
+
+create or replace function public.purchase_product_stock_sync()
+returns trigger
+language plpgsql
+security invoker
+set search_path=public
+as $
+declare
+  pdate date;
+  pj text;
+begin
+  if new.product_id is null then return new; end if;
+  select invoice_date,jalali_date into pdate,pj from public.purchase_invoices where id=new.purchase_id;
+  insert into public.inventory_movements(product_id,movement_type,quantity,movement_date,jalali_date,ref_type,ref_id,notes)
+  values(new.product_id,'purchase',new.quantity,coalesce(pdate,current_date),pj,'purchase_product',new.id,new.description);
+  update public.products
+    set purchase_price=new.unit_price,
+        estimated_cost=case when estimated_cost=0 then new.unit_price else estimated_cost end
+  where id=new.product_id;
+  return new;
+end;
+$;
+
+do $ begin
+  if not exists(select 1 from pg_trigger where tgname='purchase_product_stock_sync_trg') then
+    create trigger purchase_product_stock_sync_trg
+      after insert on public.purchase_items
+      for each row when (new.product_id is not null)
+      execute function public.purchase_product_stock_sync();
+  end if;
+end $;
+
+create or replace view public.v_product_stock
+with (security_invoker=true) as
+select p.id as product_id,
+       p.name,
+       p.unit,
+       p.min_stock,
+       coalesce(sum(case
+         when im.movement_type in ('purchase','production','return_in','adjustment_in','release') then im.quantity
+         when im.movement_type in ('sale','waste','return_out','adjustment_out','reservation') then -im.quantity
+         else 0 end),0) as available_stock
+from public.products p
+left join public.inventory_movements im on im.product_id=p.id
+group by p.id,p.name,p.unit,p.min_stock;
+
 -- Cash register
 create table if not exists public.cash_registers(
   id uuid primary key default gen_random_uuid(),
