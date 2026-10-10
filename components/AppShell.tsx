@@ -20,8 +20,10 @@ const nav=[
   {h:'/inventory',l:'انبار',roles:['owner','admin','workshop']},
   {h:'/production',l:'تولید و BOM',roles:['owner','admin','workshop']},
   {h:'/employees',l:'کارکنان و حقوق',roles:['owner','admin','accountant']},
+  {h:'/ledger',l:'حساب طرف‌ها',roles:['owner','admin','accountant']},
   {h:'/reports',l:'گزارش‌ها',roles:['owner','admin','accountant']},
   {h:'/users',l:'کاربران و دسترسی',roles:['owner','admin']},
+  {h:'/audit',l:'لاگ تغییرات',roles:['owner','admin']},
   {h:'/backup',l:'پشتیبان و خروجی',roles:['owner','admin']},
   {h:'/settings',l:'تنظیمات',roles:['owner','admin']}
 ];
