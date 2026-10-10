@@ -31,6 +31,42 @@ alter table if exists public.company_settings
   add column if not exists logo_url text;
 
 
+
+-- Accounts payable / supplier settlement
+alter table if exists public.purchase_invoices
+  add column if not exists paid_amount numeric(18,2) not null default 0,
+  add column if not exists payment_status text not null default 'unpaid';
+do $ begin
+  if not exists(select 1 from pg_constraint where conname='purchase_invoices_payment_status_check') then
+    alter table public.purchase_invoices
+      add constraint purchase_invoices_payment_status_check
+      check(payment_status in ('unpaid','partial','paid'));
+  end if;
+end $;
+
+alter table if exists public.financial_transactions
+  add column if not exists purchase_invoice_id uuid references public.purchase_invoices(id) on delete set null;
+create index if not exists financial_purchase_invoice_idx on public.financial_transactions(purchase_invoice_id);
+
+create or replace view public.v_supplier_balances
+with (security_invoker=true) as
+select p.id as supplier_id,
+       p.display_name,
+       coalesce(sum(pi.total - coalesce(pi.paid_amount,0)),0) as balance
+from public.parties p
+left join public.purchase_invoices pi on pi.supplier_id=p.id
+where p.party_type in ('supplier','both')
+group by p.id,p.display_name;
+
+-- Default retail walk-in customer
+insert into public.parties(party_type,display_name,customer_kind,active)
+select 'customer','مشتری نقدی','retail',true
+where not exists(
+  select 1 from public.parties
+  where lower(display_name)=lower('مشتری نقدی')
+    and party_type in ('customer','both')
+);
+
 -- Purchases can add either raw materials or finished retail products
 alter table if exists public.purchase_items
   add column if not exists product_id uuid references public.products(id) on delete set null;
